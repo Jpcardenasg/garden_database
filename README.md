@@ -219,7 +219,7 @@ INSERT INTO oficina (nombre, telefono) VALUES
     ('Oficina Norte', '3456789012'),
     ('Oficina Sur', '4567890123'),
     ('Oficina Este', '5678901234'),
-    ('Oficina Oeste', '6789012345');
+    ('Oficina_direccion Oeste', '6789012345');
 
 -- Empleados
 INSERT INTO empleado (codigo_empleado, nombre_empleado, apellido_empleado1, extension, email, codigo_oficina, codigo_jefe, puesto) VALUES 
@@ -281,7 +281,7 @@ INSERT INTO oficina_direccion (codigo_oficina, id_direccion) VALUES
 1. Devuelve un listado con el código de oficina y la ciudad donde hay oficinas.
 ```sql
 SELECT o.codigo_oficina, c.nombre AS ciudad
-FROM oficina o
+FROM oficina_direccion o
 JOIN oficina_direccion od ON o.codigo_oficina = od.codigo_oficina
 JOIN direccion d ON od.id_direccion = d.id_direccion
 JOIN ciudad c ON d.id_ciudad = c.id_ciudad;
@@ -301,7 +301,7 @@ JOIN ciudad c ON d.id_ciudad = c.id_ciudad;
 2. Devuelve un listado con la ciudad y el teléfono de las oficinas de España.
 ```sql
 SELECT c.nombre AS ciudad, o.telefono
-FROM oficina o
+FROM oficina_direccion o
 JOIN oficina_direccion od ON o.codigo_oficina = od.codigo_oficina
 JOIN direccion d ON od.id_direccion = d.id_direccion
 JOIN ciudad c ON d.id_ciudad = c.id_ciudad
@@ -465,3 +465,249 @@ FROM cliente_direccion
 WHERE id_direccion IN (SELECT id_direccion FROM direccion WHERE 
 id_ciudad IN (SELECT id_ciudad FROM ciudad WHERE nombre = 'Madrid'))
 ) AND codigo_empleado_rep_ventas IN (11, 30);
+```
+
+## **Consultas multitabla (composición interna)**
+
+Resuelva todas las consultas utilizando la sintaxis de SQL1 y SQL2. Las consultas con sintaxis de SQL2 se deben resolver con INNER JOIN y NATURAL JOIN.
+
+1. Obtén un listado con el nombre de cada cliente y el nombre y apellido de su representante de ventas.
+```sql
+--SQL1
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1
+FROM cliente c, empleado e
+WHERE c.codigo_empleado_rep_ventas = e.codigo_empleado;
+
+--SQL2
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1
+FROM cliente c
+INNER JOIN empleado e ON c.codigo_empleado_rep_ventas = e.codigo_empleado;
+
+
++----------------+-----------------+--------------------+
+| nombre_cliente | nombre_empleado | apellido_empleado1 |
++----------------+-----------------+--------------------+
+| Cliente 1      | Juan            | Pérez              |
+| Cliente 2      | Luisa           | Martínez           |
+| Cliente 3      | Carlos          | Gomez              |
+| Cliente 4      | María           | Garcia             |
+| Cliente 5      | Ana             | Lopez              |
+| Cliente 6      | Miguel          | Hernández          |
++----------------+-----------------+--------------------+
+```
+
+2. Muestra el nombre de los clientes que hayan realizado pagos junto con el nombre de sus representantes de ventas.
+```sql
+--SQL1 
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1
+FROM cliente c, empleado e, pago p
+WHERE c.codigo_empleado_rep_ventas = e.codigo_empleado
+AND c.codigo_cliente = p.codigo_cliente;
+
+--SQL2
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1
+FROM cliente c
+INNER JOIN empleado e ON c.codigo_empleado_rep_ventas = e.codigo_empleado
+INNER JOIN pago p ON c.codigo_cliente = p.codigo_cliente;
+
++----------------+-----------------+--------------------+
+| nombre_cliente | nombre_empleado | apellido_empleado1 |
++----------------+-----------------+--------------------+
+| Cliente 1      | Juan            | Pérez              |
+| Cliente 2      | Luisa           | Martínez           |
+| Cliente 3      | Carlos          | Gomez              |
+| Cliente 4      | María           | Garcia             |
+| Cliente 5      | Ana             | Lopez              |
+| Cliente 6      | Miguel          | Hernández          |
++----------------+-----------------+--------------------+
+```
+3. Muestra el nombre de los clientes que no hayan realizado pagos junto con el nombre de sus representantes de ventas.
+```sql
+--SQL1
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1
+FROM cliente c, empleado e
+WHERE c.codigo_empleado_rep_ventas = e.codigo_empleado
+AND c.codigo_cliente NOT IN (SELECT codigo_cliente FROM pago);
+
+--SQL2
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1
+FROM cliente c
+INNER JOIN empleado e ON c.codigo_empleado_rep_ventas = e.codigo_empleado
+LEFT JOIN pago p ON c.codigo_cliente = p.codigo_cliente
+WHERE p.codigo_cliente IS NULL;
+
+```
+4. Devuelve el nombre de los clientes que han hecho pagos y el nombre de sus representantes junto con la ciudad de la oficina a la que pertenece el representante.
+```sql
+--SQL1
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1, d.id_ciudad
+FROM cliente c, empleado e, pago p, oficina_direccion o, direccion d
+WHERE c.codigo_empleado_rep_ventas = e.codigo_empleado
+AND c.codigo_cliente = p.codigo_cliente
+AND e.codigo_oficina = o.codigo_oficina
+AND o.id_direccion = d.id_direccion;
+
+--SQL2
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1, d.id_ciudad
+FROM cliente c
+INNER JOIN empleado e ON c.codigo_empleado_rep_ventas = e.codigo_empleado
+INNER JOIN pago p ON c.codigo_cliente = p.codigo_cliente
+INNER JOIN oficina_direccion o ON e.codigo_oficina = o.codigo_oficina
+INNER JOIN direccion d ON o.id_direccion = d.id_direccion;
+
++----------------+-----------------+--------------------+-----------+
+| nombre_cliente | nombre_empleado | apellido_empleado1 | id_ciudad |
++----------------+-----------------+--------------------+-----------+
+| Cliente 1      | Juan            | Pérez              |         1 |
+| Cliente 2      | Luisa           | Martínez           |         2 |
+| Cliente 3      | Carlos          | Gomez              |         3 |
+| Cliente 4      | María           | Garcia             |         4 |
+| Cliente 5      | Ana             | Lopez              |         5 |
+| Cliente 6      | Miguel          | Hernández          |         6 |
++----------------+-----------------+--------------------+-----------+
+```
+5. Devuelve el nombre de los clientes que no hayan hecho pagos y el nombre de sus representantes junto con la ciudad de la oficina a la que pertenece el representante.
+```sql
+--SQL1
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1, d.id_ciudad
+FROM cliente c, empleado e, oficina_direccion o, direccion d
+WHERE c.codigo_empleado_rep_ventas = e.codigo_empleado
+AND c.codigo_cliente NOT IN (SELECT codigo_cliente FROM pago)
+AND e.codigo_oficina = o.codigo_oficina
+AND o.id_direccion = d.id_direccion;
+
+--SQL2
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1, d.id_ciudad
+FROM cliente c
+INNER JOIN empleado e ON c.codigo_empleado_rep_ventas = e.codigo_empleado
+LEFT JOIN pago p ON c.codigo_cliente = p.codigo_cliente
+INNER JOIN oficina_direccion o ON e.codigo_oficina = o.codigo_oficina
+INNER JOIN direccion d ON o.id_direccion = d.id_direccion
+WHERE p.codigo_cliente IS NULL;
+
+```
+6. Lista la dirección de las oficinas que tengan clientes en Fuenlabrada.
+```sql
+--SQL1
+SELECT DISTINCT d.*
+FROM direccion d, cliente c, ciudad ci
+WHERE d.id_ciudad = ci.id_ciudad
+AND ci.nombre = 'Fuenlabrada';
+
+--SQL2
+SELECT DISTINCT d.*
+FROM direccion d
+INNER JOIN ciudad ci ON d.id_ciudad = ci.id_ciudad
+INNER JOIN cliente c ON ci.id_ciudad = c.id_ciudad
+WHERE ci.nombre = 'Fuenlabrada';
+
+```
+7. Devuelve el nombre de los clientes y el nombre de sus representantes junto con la ciudad de la oficina a la que pertenece el representante.
+```sql
+--SQL1
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1, d.id_ciudad
+FROM cliente c, empleado e, oficina_direccion o, direccion d
+WHERE c.codigo_empleado_rep_ventas = e.codigo_empleado
+AND e.codigo_oficina = o.codigo_oficina
+AND o.id_direccion = d.id_direccion;
+
+--SQL2
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1, d.id_ciudad
+FROM cliente c
+INNER JOIN empleado e ON c.codigo_empleado_rep_ventas = e.codigo_empleado
+INNER JOIN oficina_direccion o ON e.codigo_oficina = o.codigo_oficina
+INNER JOIN direccion d ON o.id_direccion = d.id_direccion;
+
++----------------+-----------------+--------------------+-----------+
+| nombre_cliente | nombre_empleado | apellido_empleado1 | id_ciudad |
++----------------+-----------------+--------------------+-----------+
+| Cliente 1      | Juan            | Pérez              |         1 |
+| Cliente 2      | Luisa           | Martínez           |         2 |
+| Cliente 3      | Carlos          | Gomez              |         3 |
+| Cliente 4      | María           | Garcia             |         4 |
+| Cliente 5      | Ana             | Lopez              |         5 |
+| Cliente 6      | Miguel          | Hernández          |         6 |
++----------------+-----------------+--------------------+-----------+
+```
+8. Devuelve un listado con el nombre de los empleados junto con el nombre de sus jefes.
+```sql
+--SQL1
+SELECT c.nombre_cliente, e.nombre_empleado, e.apellido_empleado1, d.id_ciudad
+FROM cliente c
+INNER JOIN empleado e ON c.codigo_empleado_rep_ventas = e.codigo_empleado
+INNER JOIN oficina_direccion o ON e.codigo_oficina = o.codigo_oficina
+INNER JOIN direccion d ON o.id_direccion = d.id_direccion;
+
+--SQL2
+SELECT e1.nombre_empleado AS empleado, e2.nombre_empleado AS jefe
+FROM empleado e1
+INNER JOIN empleado e2 ON e1.codigo_jefe = e2.codigo_empleado;
+
++----------------+-----------------+--------------------+-----------+
+| nombre_cliente | nombre_empleado | apellido_empleado1 | id_ciudad |
++----------------+-----------------+--------------------+-----------+
+| Cliente 1      | Juan            | Pérez              |         1 |
+| Cliente 2      | Luisa           | Martínez           |         2 |
+| Cliente 3      | Carlos          | Gomez              |         3 |
+| Cliente 4      | María           | Garcia             |         4 |
+| Cliente 5      | Ana             | Lopez              |         5 |
+| Cliente 6      | Miguel          | Hernández          |         6 |
++----------------+-----------------+--------------------+-----------+
+```
+9. Devuelve un listado que muestre el nombre de cada empleados, el nombre de su jefe y el nombre del jefe de sus jefe.
+```sql
+--SQL1
+SELECT e1.nombre_empleado AS empleado, e2.nombre_empleado AS jefe, e3.nombre_empleado AS jefe_de_jefe
+FROM empleado e1, empleado e2, empleado e3
+WHERE e1.codigo_jefe = e2.codigo_empleado
+AND e2.codigo_jefe = e3.codigo_empleado;
+
+--SQL2
+SELECT e1.nombre_empleado AS empleado, e2.nombre_empleado AS jefe, e3.nombre_empleado AS jefe_de_jefe
+FROM empleado e1
+INNER JOIN empleado e2 ON e1.codigo_jefe = e2.codigo_empleado
+INNER JOIN empleado e3 ON e2.codigo_jefe = e3.codigo_empleado;
+
+```
+10. Devuelve el nombre de los clientes a los que no se les ha entregado a tiempo un pedido.
+```sql
+--SQL1
+SELECT DISTINCT c.nombre_cliente
+FROM cliente c, pedido p
+WHERE c.codigo_cliente = p.codigo_cliente
+AND p.fecha_entrega > p.fecha_esperada;
+
+--SQL2
+SELECT DISTINCT c.nombre_cliente
+FROM cliente c
+INNER JOIN pedido p ON c.codigo_cliente = p.codigo_cliente
+WHERE p.fecha_entrega > p.fecha_esperada;
+
+```
+11. Devuelve un listado de las diferentes gamas de producto que ha comprado cada cliente.
+```sql
+--SQL1
+SELECT DISTINCT c.nombre_cliente, p.id_gama
+FROM cliente c, pedido pe, detalle_pedido dp, producto p
+WHERE c.codigo_cliente = pe.codigo_cliente
+AND pe.codigo_pedido = dp.codigo_pedido
+AND dp.codigo_producto = p.codigo_producto;
+
+--SQL2
+SELECT DISTINCT c.nombre_cliente, p.id_gama
+FROM cliente c
+INNER JOIN pedido pe ON c.codigo_cliente = pe.codigo_cliente
+INNER JOIN detalle_pedido dp ON pe.codigo_pedido = dp.codigo_pedido
+INNER JOIN producto p ON dp.codigo_producto = p.codigo_producto;
+
++----------------+--------------+
+| nombre_cliente | id_gama      |
++----------------+--------------+
+| Cliente 1      | Electrónica  |
+| Cliente 2      | Electrónica  |
+| Cliente 3      | Hogar        |
+| Cliente 4      | Jardinería   |
+| Cliente 5      | Deporte      |
+| Cliente 6      | Moda         |
++----------------+--------------+
+```
